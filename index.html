@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deadMad — Telegram Bot Developer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* ===== RESET & VARIABLES ===== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-void: #030508;
+    --bg-deep: #070c14;
+    --bg-card: rgba(10, 16, 28, 0.75);
+    --bg-glass: rgba(14, 22, 42, 0.6);
+    --accent-blue: #00c2ff;
+    --accent-violet: #7c3aed;
+    --accent-cyan: #06ffd4;
+    --accent-pink: #f0abfc;
+    --accent-glow: rgba(0, 194, 255, 0.18);
+    --text-bright: #f0f6ff;
+    --text-mid: #8da4c8;
+    --text-dim: #3d5275;
+    --border: rgba(0, 194, 255, 0.12);
+    --border-bright: rgba(0, 194, 255, 0.35);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg-void);
+    color: var(--text-bright);
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ===== CUSTOM CURSOR ===== */
+  #cursor {
+    width: 12px; height: 12px;
+    background: var(--accent-blue);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s ease;
+    box-shadow: 0 0 12px var(--accent-blue), 0 0 24px rgba(0,194,255,0.4);
+  }
+  #cursor-ring {
+    width: 36px; height: 36px;
+    border: 1.5px solid rgba(0,194,255,0.5);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9998;
+    transition: all 0.18s ease;
+  }
+
+  /* ===== NOISE OVERLAY ===== */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.4;
+  }
+
+  /* ===== CANVAS PARTICLES ===== */
+  #particleCanvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-void); }
+  ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
+
+  /* ===== LAYOUT ===== */
+  .container { max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+  section { position: relative; z-index: 2; }
+
+  /* ===== NAVBAR ===== */
+  nav {
+    position: fixed; top: 0; width: 100%;
+    z-index: 100;
+    padding: 18px 0;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    background: rgba(3,5,8,0.75);
+    transition: all 0.3s ease;
+  }
+  nav.scrolled {
+    padding: 12px 0;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.8);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 1160px; margin: 0 auto; padding: 0 28px;
+  }
+  .nav-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem; font-weight: 700;
+    color: var(--accent-blue);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+  .nav-logo span { color: var(--accent-cyan); }
+  .nav-links { display: flex; gap: 36px; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--text-mid); text-decoration: none; text-transform: uppercase;
+    transition: color 0.2s ease;
+    position: relative;
+  }
+  .nav-links a::after {
+    content: ''; position: absolute; bottom: -3px; left: 0;
+    width: 0; height: 1.5px;
+    background: var(--accent-blue);
+    transition: width 0.25s ease;
+  }
+  .nav-links a:hover { color: var(--accent-blue); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-cta {
+    background: transparent; border: 1.5px solid var(--accent-blue);
+    color: var(--accent-blue); padding: 8px 20px;
+    border-radius: 8px; font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.07em; text-decoration: none; text-transform: uppercase;
+    cursor: none;
+    transition: all 0.25s ease;
+  }
+  .nav-cta:hover {
+    background: var(--accent-blue); color: #000;
+    box-shadow: 0 0 20px rgba(0,194,255,0.4);
+  }
+  .hamburger { display: none; flex-direction: column; gap: 5px; cursor: none; }
+  .hamburger span { width: 24px; height: 2px; background: var(--accent-blue); border-radius: 2px; transition: all 0.3s; }
+
+  /* ===== HERO ===== */
+  #hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 120px 28px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero-bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,194,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+  }
+  .hero-orb-1 {
+    position: absolute; width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%);
+    top: -200px; right: -100px;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .hero-orb-2 {
+    position: absolute; width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,194,255,0.12) 0%, transparent 70%);
+    bottom: -100px; left: -150px;
+    animation: orbFloat 10s ease-in-out infinite reverse;
+  }
+  @keyframes orbFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+  .hero-content { text-align: center; max-width: 820px; position: relative; z-index: 2; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,194,255,0.08); border: 1px solid rgba(0,194,255,0.22);
+    padding: 7px 18px; border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; color: var(--accent-cyan); letter-spacing: 0.05em;
+    margin-bottom: 32px;
+    animation: fadeSlideDown 0.8s ease both;
+  }
+  .hero-badge::before {
+    content: '';
+    width: 7px; height: 7px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-cyan);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+  .hero-name {
+    font-size: clamp(3.5rem, 10vw, 7.5rem);
+    font-weight: 800; line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+    animation: fadeSlideDown 0.9s ease 0.1s both;
+  }
+  .hero-name .dead { color: var(--text-bright); }
+  .hero-name .mad {
+    color: transparent;
+    -webkit-text-stroke: 2px var(--accent-blue);
+    text-shadow: 0 0 40px rgba(0,194,255,0.3);
+  }
+  .hero-tagline {
+    font-size: clamp(1rem, 2.5vw, 1.35rem);
+    font-weight: 400; color: var(--text-mid);
+    line-height: 1.6; max-width: 620px; margin: 0 auto 16px;
+    animation: fadeSlideDown 1s ease 0.2s both;
+  }
+  .hero-tagline strong { color: var(--accent-blue); font-weight: 600; }
+  .hero-intro {
+    font-size: 0.95rem; color: var(--text-dim);
+    max-width: 580px; margin: 0 auto 40px;
+    line-height: 1.7;
+    animation: fadeSlideDown 1s ease 0.3s both;
+  }
+  .hero-ctas {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+    animation: fadeSlideDown 1s ease 0.4s both;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 28px; border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem; font-weight: 700; letter-spacing: 0.04em;
+    text-decoration: none; cursor: none;
+    transition: all 0.25s ease;
+    position: relative; overflow: hidden;
+  }
+  .btn::before {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(255,255,255,0.07);
+    transform: translateX(-100%) skewX(-10deg);
+    transition: transform 0.4s ease;
+  }
+  .btn:hover::before { transform: translateX(110%) skewX(-10deg); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+    color: #fff;
+    box-shadow: 0 0 0 transparent;
+  }
+  .btn-primary:hover { box-shadow: 0 0 30px rgba(0,194,255,0.4), 0 0 60px rgba(124,58,237,0.2); transform: translateY(-2px); }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--border-bright);
+    color: var(--text-bright);
+  }
+  .btn-outline:hover { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0,194,255,0.06); transform: translateY(-2px); }
+  .btn-ghost {
+    background: rgba(6,255,212,0.07);
+    border: 1.5px solid rgba(6,255,212,0.25);
+    color: var(--accent-cyan);
+  }
+  .btn-ghost:hover { background: rgba(6,255,212,0.14); transform: translateY(-2px); box-shadow: 0 0 20px rgba(6,255,212,0.2); }
+  .hero-scroll {
+    margin-top: 64px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    color: var(--text-dim); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+    animation: fadeSlideDown 1s ease 0.6s both;
+  }
+  .scroll-line {
+    width: 1px; height: 50px;
+    background: linear-gradient(to bottom, var(--accent-blue), transparent);
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.4; transform: scaleY(1); }
+    50% { opacity: 1; transform: scaleY(1.1); }
+  }
+
+  /* ===== STATS ===== */
+  #stats {
+    padding: 60px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,194,255,0.02);
+  }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .stat-item { text-align: center; padding: 20px; }
+  .stat-num {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 700; color: var(--accent-blue);
+    display: block; line-height: 1;
+    text-shadow: 0 0 20px rgba(0,194,255,0.4);
+    margin-bottom: 8px;
+  }
+  .stat-label { font-size: 0.8rem; color: var(--text-mid); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* ===== SECTION HEADERS ===== */
+  .section-header { text-align: center; margin-bottom: 64px; }
+  .section-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent-cyan);
+    margin-bottom: 14px;
+    padding: 5px 14px;
+    border: 1px solid rgba(6,255,212,0.2);
+    border-radius: 100px;
+  }
+  .section-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800; line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-title em { font-style: normal; color: var(--accent-blue); }
+  .section-desc { font-size: 1rem; color: var(--text-mid); max-width: 520px; margin: 0 auto; line-height: 1.7; }
+
+  /* ===== ABOUT ===== */
+  #about { padding: 110px 0; }
+  .about-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+  }
+  .about-visual {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .about-avatar {
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0,194,255,0.15), rgba(124,58,237,0.25));
+    border: 2px solid var(--border-bright);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0,194,255,0.15), 0 0 120px rgba(124,58,237,0.1);
+  }
+  .about-avatar-inner {
+    font-size: 5rem; line-height: 1;
+    animation: avatarPop 3s ease-in-out infinite;
+  }
+  @keyframes avatarPop {
+    0%, 100% { transform: scale(1) rotate(-2deg); }
+    50% { transform: scale(1.05) rotate(2deg); }
+  }
+  .about-ring {
+    position: absolute; inset: -20px;
+    border-radius: 50%;
+    border: 1px dashed rgba(0,194,255,0.2);
+    animation: ringRotate 20s linear infinite;
+  }
+  .about-ring-2 {
+    inset: -40px;
+    animation-duration: 30s; animation-direction: reverse;
+    border-color: rgba(124,58,237,0.15);
+  }
+  @keyframes ringRotate { to { transform: rotate(360deg); } }
+  .about-dot {
+    position: absolute; width: 10px; height: 10px;
+    background: var(--accent-blue); border-radius: 50%;
+    top: -5px; left: 50%;
+    box-shadow: 0 0 10px var(--accent-blue);
+  }
+  .about-text .section-tag { text-align: left; display: inline-block; }
+  .about-text h2 {
+    font-size: 2.3rem; font-weight: 800;
+    line-height: 1.15; margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+  .about-text h2 em { font-style: normal; color: var(--accent-blue); }
+  .about-text p {
+    color: var(--text-mid); line-height: 1.8;
+    font-size: 0.95rem; margin-bottom: 16px;
+  }
+  .about-tags {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px;
+  }
+  .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; padding: 6px 14px;
+    border-radius: 8px; font-weight: 500;
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    background: rgba(255,255,255,0.02);
+    transition: all 0.2s ease;
+  }
+  .tag:hover { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0,194,255,0.06); }
+
+  /* ===== SERVICES ===== */
+  #services { padding: 110px 0; background: rgba(6,255,212,0.015); }
+  .services-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .service-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+    position: relative; overflow: hidden;
+    cursor: none;
+  }
+  .service-card::before {
+    content: ''; position: absolute;
+    inset: 0; border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(0,194,255,0.05), rgba(124,58,237,0.05));
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .service-card:hover { border-color: var(--border-bright); transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(0,194,255,0.08); }
+  .service-card:hover::before { opacity: 1; }
+  .service-icon {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    background: rgba(0,194,255,0.1);
+    border: 1px solid rgba(0,194,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; margin-bottom: 20px;
+    transition: all 0.3s ease;
+  }
+  .service-card:hover .service-icon {
+    background: rgba(0,194,255,0.18); transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(0,194,255,0.2);
+  }
+  .service-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+  .service-card p { font-size: 0.87rem; color: var(--text-mid); line-height: 1.65; }
+
+  /* ===== PROJECTS ===== */
+  #projects { padding: 110px 0; }
+  .projects-grid { display: flex; flex-direction: column; gap: 32px; }
+  .project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    backdrop-filter: blur(16px);
+    display: grid; grid-template-columns: 1fr 380px;
+    gap: 48px; align-items: center;
+    transition: all 0.35s ease;
+    position: relative; overflow: hidden;
+    cursor: none;
+  }
+  .project-card::after {
+    content: ''; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(to bottom, var(--accent-blue), var(--accent-violet));
+    border-radius: 20px 0 0 20px;
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .project-card:hover { border-color: var(--border-bright); transform: translateX(6px); box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 40px rgba(0,194,255,0.06); }
+  .project-card:hover::after { opacity: 1; }
+  .project-card:nth-child(2) { direction: rtl; }
+  .project-card:nth-child(2) > * { direction: ltr; }
+  .project-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; color: var(--text-dim);
+    letter-spacing: 0.1em; margin-bottom: 10px;
+  }
+  .project-meta {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  }
+  .project-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; letter-spacing: 0.1em;
+    padding: 4px 12px; border-radius: 100px;
+    border: 1px solid;
+  }
+  .badge-blue { border-color: rgba(0,194,255,0.4); color: var(--accent-blue); background: rgba(0,194,255,0.07); }
+  .badge-violet { border-color: rgba(124,58,237,0.4); color: var(--accent-pink); background: rgba(124,58,237,0.07); }
+  .badge-cyan { border-color: rgba(6,255,212,0.4); color: var(--accent-cyan); background: rgba(6,255,212,0.07); }
+  .project-title {
+    font-size: 1.8rem; font-weight: 800;
+    letter-spacing: -0.02em; margin-bottom: 6px;
+    line-height: 1.1;
+  }
+  .project-sub { font-size: 0.82rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; margin-bottom: 16px; }
+  .project-desc { font-size: 0.9rem; color: var(--text-mid); line-height: 1.7; margin-bottom: 24px; }
+  .feature-list {
+    display: flex; flex-direction: column; gap: 9px;
+    margin-bottom: 28px;
+  }
+  .feature-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.85rem; color: var(--text-mid);
+  }
+  .feature-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-blue { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
+  .dot-violet { background: var(--accent-pink); box-shadow: 0 0 6px var(--accent-pink); }
+  .dot-cyan { background: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan); }
+  .project-actions { display: flex; gap: 12px; }
+  .btn-sm { padding: 10px 20px; font-size: 0.82rem; border-radius: 8px; }
+
+  .project-preview {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    aspect-ratio: 9/16;
+    max-height: 340px;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .phone-header {
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .phone-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .phone-name { font-size: 0.78rem; color: var(--text-mid); font-weight: 600; margin-left: 4px; }
+  .phone-status { font-size: 0.65rem; color: #3ba55c; margin-left: auto; }
+  .phone-body {
+    flex: 1; padding: 14px 12px;
+    display: flex; flex-direction: column;
+    gap: 10px; overflow: hidden;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 9px 13px;
+    border-radius: 12px;
+    font-size: 0.78rem; line-height: 1.5;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .msg-bot {
+    background: rgba(0,194,255,0.12);
+    border: 1px solid rgba(0,194,255,0.2);
+    color: var(--text-bright); align-self: flex-start;
+    border-radius: 4px 12px 12px 12px;
+  }
+  .msg-user {
+    background: rgba(124,58,237,0.2);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: var(--text-bright); align-self: flex-end;
+    border-radius: 12px 4px 12px 12px;
+  }
+  .board-preview {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 4px; padding: 8px;
+    background: rgba(0,0,0,0.2); border-radius: 10px; margin: 4px 0;
+  }
+  .cell {
+    aspect-ratio: 1; border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  .cell.x { color: var(--accent-blue); text-shadow: 0 0 8px var(--accent-blue); }
+  .cell.o { color: var(--accent-pink); text-shadow: 0 0 8px var(--accent-pink); }
+
+  /* ===== WHY CHOOSE ME ===== */
+  #why { padding: 110px 0; background: rgba(124,58,237,0.02); }
+  .why-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+  .why-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 22px; text-align: center;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+    cursor: none;
+  }
+  .why-card:hover { border-color: var(--border-bright); transform: translateY(-6px); box-shadow: 0 16px 50px rgba(0,0,0,0.5), 0 0 20px rgba(0,194,255,0.07); }
+  .why-icon { font-size: 2.2rem; margin-bottom: 14px; display: block; }
+  .why-card h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 8px; }
+  .why-card p { font-size: 0.8rem; color: var(--text-mid); line-height: 1.5; }
+
+  /* ===== COMMUNITY ===== */
+  #community { padding: 80px 0; }
+  .community-banner {
+    background: linear-gradient(135deg, rgba(0,194,255,0.08) 0%, rgba(124,58,237,0.12) 50%, rgba(6,255,212,0.05) 100%);
+    border: 1px solid var(--border-bright);
+    border-radius: 24px;
+    padding: 64px;
+    text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .community-banner::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 50% 60% at 50% 50%, rgba(0,194,255,0.08), transparent);
+    pointer-events: none;
+  }
+  .community-banner h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; margin-bottom: 16px; letter-spacing: -0.02em; }
+  .community-banner h2 em { font-style: normal; color: var(--accent-blue); }
+  .community-banner p { font-size: 1rem; color: var(--text-mid); max-width: 480px; margin: 0 auto 32px; line-height: 1.7; }
+  .community-stats {
+    display: flex; justify-content: center; gap: 48px; margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .cs { text-align: center; }
+  .cs span { display: block; font-family: 'Space Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--accent-cyan); }
+  .cs small { font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* ===== CONTACT ===== */
+  #contact { padding: 110px 0; }
+  .contact-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 64px; align-items: center;
+  }
+  .contact-info h2 { font-size: 2.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 18px; letter-spacing: -0.02em; }
+  .contact-info h2 em { font-style: normal; color: var(--accent-blue); }
+  .contact-info p { font-size: 0.95rem; color: var(--text-mid); line-height: 1.7; margin-bottom: 32px; }
+  .contact-handles { display: flex; flex-direction: column; gap: 14px; }
+  .handle-item {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px;
+    text-decoration: none; color: var(--text-bright);
+    transition: all 0.25s ease;
+    cursor: none;
+  }
+  .handle-item:hover { border-color: var(--border-bright); background: rgba(0,194,255,0.05); transform: translateX(6px); }
+  .handle-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(0,194,255,0.1); border: 1px solid rgba(0,194,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+  }
+  .handle-info small { font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; display: block; }
+  .handle-info strong { font-size: 0.95rem; }
+  .contact-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px;
+    backdrop-filter: blur(16px);
+  }
+  .contact-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+  .contact-card p { font-size: 0.88rem; color: var(--text-mid); margin-bottom: 28px; line-height: 1.65; }
+  .avail-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.78rem; color: #3ba55c;
+    background: rgba(59,165,92,0.1); border: 1px solid rgba(59,165,92,0.25);
+    padding: 6px 14px; border-radius: 100px; margin-bottom: 24px;
+  }
+  .avail-dot { width: 7px; height: 7px; background: #3ba55c; border-radius: 50%; animation: pulse 1.5s infinite; }
+  .contact-links { display: flex; flex-direction: column; gap: 12px; }
+  .contact-link-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px; border-radius: 12px; font-size: 0.9rem; font-weight: 700;
+    text-decoration: none; cursor: none;
+    transition: all 0.25s ease;
+  }
+  .tg-primary {
+    background: linear-gradient(135deg, #0088cc, #006bad);
+    color: #fff;
+  }
+  .tg-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,136,204,0.4); }
+  .tg-secondary {
+    background: transparent; border: 1.5px solid rgba(0,136,204,0.35);
+    color: #0088cc;
+  }
+  .tg-secondary:hover { background: rgba(0,136,204,0.1); transform: translateY(-3px); }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 36px 0;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    position: relative; z-index: 2;
+  }
+  footer span { color: var(--accent-blue); }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .reveal { opacity: 0; transform: translateY(30px); transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+
+  /* ===== MOBILE NAV ===== */
+  .mobile-menu {
+    display: none; position: fixed; inset: 0; z-index: 99;
+    background: rgba(3,5,8,0.97); backdrop-filter: blur(20px);
+    flex-direction: column; align-items: center; justify-content: center; gap: 36px;
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); text-decoration: none; }
+  .mobile-menu a:hover { color: var(--accent-blue); }
+  .close-menu { position: absolute; top: 28px; right: 28px; font-size: 1.8rem; color: var(--text-mid); cursor: none; background: none; border: none; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1024px) {
+    .services-grid { grid-template-columns: repeat(2, 1fr); }
+    .why-grid { grid-template-columns: repeat(3, 1fr); }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .project-card { grid-template-columns: 1fr; }
+    .project-card:nth-child(2) { direction: ltr; }
+    .project-preview { aspect-ratio: auto; max-height: 240px; }
+  }
+  @media (max-width: 768px) {
+    .nav-links, .nav-cta { display: none; }
+    .hamburger { display: flex; }
+    .about-grid, .contact-grid { grid-template-columns: 1fr; }
+    .about-visual { margin-bottom: 32px; }
+    .why-grid { grid-template-columns: repeat(2, 1fr); }
+    .services-grid { grid-template-columns: 1fr; }
+    .project-card { padding: 28px 24px; }
+    .community-banner { padding: 40px 28px; }
+    .community-stats { gap: 28px; }
+    .hero-ctas .btn { padding: 11px 22px; font-size: 0.85rem; }
+  }
+  @media (max-width: 500px) {
+    .why-grid { grid-template-columns: 1fr 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-ctas { flex-direction: column; align-items: center; }
+  }
+  @media (hover: none) {
+    body { cursor: auto; }
+    .btn, a, [cursor-none] { cursor: pointer; }
+    #cursor, #cursor-ring { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- PARTICLE CANVAS -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="#hero" class="nav-logo">dead<span>Mad</span></a>
+    <ul class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#community">Community</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="https://t.me/The_deadMad" target="_blank" class="nav-cta">Hire Me</a>
+    <div class="hamburger" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <button class="close-menu" id="closeMenu">✕</button>
+  <a href="#about" onclick="closeMobileMenu()">About</a>
+  <a href="#services" onclick="closeMobileMenu()">Services</a>
+  <a href="#projects" onclick="closeMobileMenu()">Projects</a>
+  <a href="#community" onclick="closeMobileMenu()">Community</a>
+  <a href="#contact" onclick="closeMobileMenu()">Contact</a>
+  <a href="https://t.me/The_deadMad" target="_blank" class="btn btn-primary" style="margin-top:12px;">Hire Me</a>
+</div>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg-grid"></div>
+  <div class="hero-orb-1"></div>
+  <div class="hero-orb-2"></div>
+  <div class="hero-content">
+    <div class="hero-badge">⚡ Available for custom bot development</div>
+    <h1 class="hero-name">
+      <span class="dead">dead</span><span class="mad">Mad</span>
+    </h1>
+    <p class="hero-tagline">
+      Building <strong>powerful, smart & scalable</strong> Telegram bots<br>with AI and automation
+    </p>
+    <p class="hero-intro">
+      I build high-performance Telegram bots — AI chatbots, multiplayer game bots, and advanced group management systems designed for real-world usage and large communities.
+    </p>
+    <div class="hero-ctas">
+      <a href="#projects" class="btn btn-primary">🚀 View My Bots</a>
+      <a href="#contact" class="btn btn-outline">📬 Contact Me</a>
+      <a href="https://t.me/scriptX_Lab" target="_blank" class="btn btn-ghost">📢 Join Community</a>
+    </div>
+    <div class="hero-scroll">
+      <span>Scroll to explore</span>
+      <div class="scroll-line"></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section id="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item reveal">
+        <span class="stat-num" data-count="5000">0</span>
+        <div class="stat-label">Bot Users</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-1">
+        <span class="stat-num" data-count="3">0</span>
+        <div class="stat-label">Live Bots</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-2">
+        <span class="stat-num" data-count="99">0</span>
+        <div class="stat-label">Uptime %</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-3">
+        <span class="stat-num" data-count="100">0</span>
+        <div class="stat-label">Client Satisfaction %</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-visual">
+        <div class="about-avatar">
+          <div class="about-ring"></div>
+          <div class="about-ring about-ring-2"></div>
+          <div class="about-dot"></div>
+          <div class="about-avatar-inner">🤖</div>
+        </div>
+      </div>
+      <div class="about-text reveal">
+        <div class="section-tag">// about me</div>
+        <h2>The Developer<br>Behind the <em>Bots</em></h2>
+        <p>I'm <strong>deadMad</strong> — a Telegram Bot Developer, Android Developer, and AI Agent builder. I specialize in crafting intelligent, scalable bots that don't just work, they perform at scale.</p>
+        <p>My bots are architected for production — with secure backends, AI integrations, per-user memory, anti-spam systems, and clean UX inside Telegram itself. Whether you need a game, a chatbot, or a group manager, I build it right the first time.</p>
+        <p>Every project is built with performance, reliability, and real-world usage in mind — not just demos.</p>
+        <div class="about-tags">
+          <span class="tag">AI Bots</span>
+          <span class="tag">Automation</span>
+          <span class="tag">Scalability</span>
+          <span class="tag">Python</span>
+          <span class="tag">Aiogram</span>
+          <span class="tag">Android Dev</span>
+          <span class="tag">API Integration</span>
+          <span class="tag">Group Management</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">// what I build</div>
+      <h2 class="section-title">My <em>Services</em></h2>
+      <p class="section-desc">End-to-end Telegram bot development — from concept to deployment, with AI at the core.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card reveal">
+        <div class="service-icon">⚙️</div>
+        <h3>Custom Telegram Bot Development</h3>
+        <p>Fully custom bots tailored to your exact requirements. Built for speed, reliability, and any scale of user base.</p>
+      </div>
+      <div class="service-card reveal reveal-delay-1">
+        <div class="service-icon">🧠</div>
+        <h3>AI Chatbot Development</h3>
+        <p>Personality-driven AI chatbots with Hinglish support, per-user memory, and smart behavioral logic.</p>
+      </div>
+      <div class="service-card reveal reveal-delay-2">
+        <div class="service-icon">🛡️</div>
+        <h3>Group Management Bots</h3>
+        <p>Powerful group managers with anti-spam, raid protection, captcha, analytics, and full admin toolkits.</p>
+      </div>
+      <div class="service-card reveal reveal-delay-3">
+        <div class="service-icon">🎮</div>
+        <h3>Game Bots (Multiplayer + AI)</h3>
+        <p>Interactive multiplayer games inside Telegram — with AI opponents, leaderboards, and real-time gameplay.</p>
+      </div>
+      <div class="service-card reveal reveal-delay-4">
+        <div class="service-icon">🔗</div>
+        <h3>Automation & API Integration</h3>
+        <p>Connect your bots to any third-party API — payments, databases, webhooks, notifications, and more.</p>
+      </div>
+      <div class="service-card reveal reveal-delay-4" style="background: linear-gradient(135deg, rgba(0,194,255,0.07), rgba(124,58,237,0.09)); border-color: var(--border-bright);">
+        <div class="service-icon" style="background: rgba(0,194,255,0.18);">💬</div>
+        <h3>Consultation & Bot Strategy</h3>
+        <p>Not sure what you need? Let's talk through your use case and I'll design the perfect bot architecture for your goals.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">// live bots</div>
+      <h2 class="section-title">Featured <em>Projects</em></h2>
+      <p class="section-desc">Real bots, live in production, serving real users every single day.</p>
+    </div>
+    <div class="projects-grid">
+
+      <!-- Bot 1: Tic Tac Toe -->
+      <div class="project-card reveal">
+        <div class="project-info">
+          <div class="project-num">PROJECT_01</div>
+          <div class="project-meta">
+            <span class="project-badge badge-blue">GAME BOT</span>
+            <span class="project-badge badge-blue">AI POWERED</span>
+          </div>
+          <h2 class="project-title">Tic Tac Toe<br>Bot</h2>
+          <p class="project-sub">Smart • Fun • Competitive</p>
+          <p class="project-desc">A fully-featured multiplayer Tic Tac Toe bot for Telegram groups with AI opponents at multiple difficulty levels, real-time gameplay, and a global leaderboard.</p>
+          <div class="feature-list">
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>Multiplayer group gameplay</div>
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>AI modes: Easy, Medium & Hard</div>
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>Spectator mode for watchers</div>
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>Auto win / draw detection</div>
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>Rematch system & leaderboard</div>
+            <div class="feature-item"><div class="feature-dot dot-blue"></div>Global ranks & badges</div>
+          </div>
+          <div class="project-actions">
+            <a href="https://t.me/madSTicTocToeGame_bot" target="_blank" class="btn btn-primary btn-sm">🎮 Try Now</a>
+            <a href="https://t.me/madSTicTocToeGame_bot" target="_blank" class="btn btn-outline btn-sm">@madSTicTocToeGame_bot</a>
+          </div>
+        </div>
+        <div class="project-preview">
+          <div class="phone-header">
+            <div class="phone-dot" style="background:#ff5f57"></div>
+            <div class="phone-dot" style="background:#ffbd2e"></div>
+            <div class="phone-dot" style="background:#28c840"></div>
+            <span class="phone-name">🎮 TicTacToe Bot</span>
+            <span class="phone-status">● Online</span>
+          </div>
+          <div class="phone-body">
+            <div class="msg msg-bot">Game started! You play as ✕</div>
+            <div class="board-preview">
+              <div class="cell x">✕</div><div class="cell"></div><div class="cell o">○</div>
+              <div class="cell"></div><div class="cell x">✕</div><div class="cell"></div>
+              <div class="cell o">○</div><div class="cell"></div><div class="cell"></div>
+            </div>
+            <div class="msg msg-user">Your move!</div>
+            <div class="msg msg-bot">⚡ AI is thinking...</div>
+            <div class="msg msg-bot">🏆 You win! +50 pts added to leaderboard</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot 2: Aksha AI -->
+      <div class="project-card reveal">
+        <div class="project-info">
+          <div class="project-num">PROJECT_02</div>
+          <div class="project-meta">
+            <span class="project-badge badge-violet">AI CHATBOT</span>
+            <span class="project-badge badge-violet">HINGLISH</span>
+          </div>
+          <h2 class="project-title">Aksha AI<br>Chat Bot</h2>
+          <p class="project-sub">Smart • Attitude • Hinglish</p>
+          <p class="project-desc">An AI chatbot with a unique Hinglish personality — flirty, sarcastic, and surprisingly human. Built with per-user memory and smart behavior in both groups and private chats.</p>
+          <div class="feature-list">
+            <div class="feature-item"><div class="feature-dot dot-violet"></div>Realistic Hinglish chat personality</div>
+            <div class="feature-item"><div class="feature-dot dot-violet"></div>Flirty & sarcastic responses</div>
+            <div class="feature-item"><div class="feature-dot dot-violet"></div>Per-user memory system</div>
+            <div class="feature-item"><div class="feature-dot dot-violet"></div>Anti-spam protection</div>
+            <div class="feature-item"><div class="feature-dot dot-violet"></div>Smart group & private behavior</div>
+          </div>
+          <div class="project-actions">
+            <a href="https://t.me/zaraBabyy_bot" target="_blank" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">💬 Try Now</a>
+            <a href="https://t.me/zaraBabyy_bot" target="_blank" class="btn btn-outline btn-sm">@zaraBabyy_bot</a>
+          </div>
+        </div>
+        <div class="project-preview" style="border-color: rgba(124,58,237,0.25);">
+          <div class="phone-header">
+            <div class="phone-dot" style="background:#ff5f57"></div>
+            <div class="phone-dot" style="background:#ffbd2e"></div>
+            <div class="phone-dot" style="background:#28c840"></div>
+            <span class="phone-name">💜 Aksha AI</span>
+            <span class="phone-status">● Online</span>
+          </div>
+          <div class="phone-body">
+            <div class="msg msg-user" style="background: rgba(124,58,237,0.2);">Kya kar rahi ho?</div>
+            <div class="msg msg-bot" style="background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3);">Teri wait kar rahi thi 😒 bas!</div>
+            <div class="msg msg-user" style="background: rgba(124,58,237,0.2);">Seriously? 😂</div>
+            <div class="msg msg-bot" style="background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3);">Haan seriously 💅 problem hai?</div>
+            <div class="msg msg-user" style="background: rgba(124,58,237,0.2);">I missed u ngl</div>
+            <div class="msg msg-bot" style="background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3);">Main toh yaad hi karti hoon 🙄✨</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot 3: Group Manager -->
+      <div class="project-card reveal">
+        <div class="project-info">
+          <div class="project-num">PROJECT_03</div>
+          <div class="project-meta">
+            <span class="project-badge badge-cyan">GROUP MANAGER</span>
+            <span class="project-badge badge-cyan">MODERATION</span>
+          </div>
+          <h2 class="project-title">Group Manager<br>Bot</h2>
+          <p class="project-sub">Smart • Secure • Powerful</p>
+          <p class="project-desc">A complete group management solution with military-grade anti-spam, raid protection, captcha verification, and a full analytics dashboard for admins.</p>
+          <div class="feature-list">
+            <div class="feature-item"><div class="feature-dot dot-cyan"></div>Anti-spam, anti-raid & anti-flood</div>
+            <div class="feature-item"><div class="feature-dot dot-cyan"></div>Captcha verification system</div>
+            <div class="feature-item"><div class="feature-dot dot-cyan"></div>Automated smart moderation</div>
+            <div class="feature-item"><div class="feature-dot dot-cyan"></div>Admin tools: ban, mute, warn</div>
+            <div class="feature-item"><div class="feature-dot dot-cyan"></div>Analytics & member leaderboard</div>
+          </div>
+          <div class="project-actions">
+            <a href="https://t.me/madGroupManager_bot" target="_blank" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #06c8a0, #059669);">🛡️ Try Now</a>
+            <a href="https://t.me/madGroupManager_bot" target="_blank" class="btn btn-outline btn-sm" style="border-color: rgba(6,255,212,0.35); color: var(--accent-cyan);">@madGroupManager_bot</a>
+          </div>
+        </div>
+        <div class="project-preview" style="border-color: rgba(6,255,212,0.2);">
+          <div class="phone-header">
+            <div class="phone-dot" style="background:#ff5f57"></div>
+            <div class="phone-dot" style="background:#ffbd2e"></div>
+            <div class="phone-dot" style="background:#28c840"></div>
+            <span class="phone-name">🛡️ Group Manager</span>
+            <span class="phone-status">● Online</span>
+          </div>
+          <div class="phone-body">
+            <div class="msg msg-bot" style="background: rgba(6,255,212,0.08); border-color: rgba(6,255,212,0.2);">🚨 Raid detected! Auto-lock activated.</div>
+            <div class="msg msg-bot" style="background: rgba(6,255,212,0.08); border-color: rgba(6,255,212,0.2);">🤖 Captcha sent to 3 new members</div>
+            <div class="msg msg-bot" style="background: rgba(6,255,212,0.08); border-color: rgba(6,255,212,0.2);">⚠️ Spam warning: @user123 (1/3)</div>
+            <div class="msg msg-user" style="background: rgba(0,150,100,0.2);">/ban @spammer</div>
+            <div class="msg msg-bot" style="background: rgba(6,255,212,0.08); border-color: rgba(6,255,212,0.2);">✅ @spammer banned. Reason: spam</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- WHY CHOOSE ME -->
+<section id="why">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">// reasons to hire</div>
+      <h2 class="section-title">Why <em>Choose Me</em></h2>
+      <p class="section-desc">Built different. Every bot I ship comes with these guarantees.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <span class="why-icon">⚡</span>
+        <h3>Fast & Reliable</h3>
+        <p>Optimized for low latency and 99%+ uptime even under heavy load.</p>
+      </div>
+      <div class="why-card reveal reveal-delay-1">
+        <span class="why-icon">🔐</span>
+        <h3>Secure Architecture</h3>
+        <p>Every bot is built with rate limiting, auth checks, and data safety.</p>
+      </div>
+      <div class="why-card reveal reveal-delay-2">
+        <span class="why-icon">🧠</span>
+        <h3>AI-Powered Core</h3>
+        <p>Real intelligence built in — not just scripted responses.</p>
+      </div>
+      <div class="why-card reveal reveal-delay-3">
+        <span class="why-icon">📈</span>
+        <h3>Built to Scale</h3>
+        <p>Engineered for large communities — handles thousands of users daily.</p>
+      </div>
+      <div class="why-card reveal reveal-delay-4">
+        <span class="why-icon">✨</span>
+        <h3>Unique Designs</h3>
+        <p>Engaging UX inside Telegram — your users will actually enjoy using them.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY -->
+<section id="community">
+  <div class="container">
+    <div class="community-banner reveal">
+      <div class="section-tag">// join us</div>
+      <h2>Join My <em>Telegram Lab</em></h2>
+      <p>Get early access to new bots, updates, feature drops, and behind-the-scenes development — all in one place.</p>
+      <div class="community-stats">
+        <div class="cs">
+          <span>🚀</span>
+          <small>New Bots Dropping</small>
+        </div>
+        <div class="cs">
+          <span>🔔</span>
+          <small>Feature Updates</small>
+        </div>
+        <div class="cs">
+          <span>💡</span>
+          <small>Dev Insights</small>
+        </div>
+      </div>
+      <a href="https://t.me/scriptX_Lab" target="_blank" class="btn btn-primary" style="font-size: 1rem; padding: 16px 36px;">
+        📢 Join scriptX Lab
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <div class="section-tag">// let's build</div>
+        <h2>Start Your<br><em>Bot Project</em></h2>
+        <p>Have an idea? Need a custom bot? I'm currently available for freelance projects. Let's talk and build something great together.</p>
+        <div class="contact-handles">
+          <a href="https://t.me/The_deadMad" target="_blank" class="handle-item">
+            <div class="handle-icon">✈️</div>
+            <div class="handle-info">
+              <small>Business & Orders</small>
+              <strong>@The_deadMad</strong>
+            </div>
+          </a>
+          <a href="https://t.me/Real_deadMad" target="_blank" class="handle-item">
+            <div class="handle-icon">👤</div>
+            <div class="handle-info">
+              <small>Developer Profile</small>
+              <strong>@Real_deadMad</strong>
+            </div>
+          </a>
+          <a href="https://t.me/scriptX_Lab" target="_blank" class="handle-item">
+            <div class="handle-icon">🔬</div>
+            <div class="handle-info">
+              <small>Community Channel</small>
+              <strong>scriptX Lab</strong>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="contact-card reveal reveal-delay-2">
+        <div class="avail-badge">
+          <div class="avail-dot"></div>
+          Available for New Projects
+        </div>
+        <h3>Ready to Build Your Bot?</h3>
+        <p>Drop me a message on Telegram. I respond fast, I work faster. Let's turn your idea into a live, production-ready Telegram bot.</p>
+        <div class="contact-links">
+          <a href="https://t.me/The_deadMad" target="_blank" class="contact-link-btn tg-primary">
+            ✈️ Message @The_deadMad
+          </a>
+          <a href="https://t.me/Real_deadMad" target="_blank" class="contact-link-btn tg-secondary">
+            👤 Developer @Real_deadMad
+          </a>
+          <a href="https://t.me/scriptX_Lab" target="_blank" class="contact-link-btn" style="background: rgba(6,255,212,0.07); border: 1.5px solid rgba(6,255,212,0.25); color: var(--accent-cyan);">
+            📢 Join scriptX Lab
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>Built with ⚡ by <span>deadMad</span> — Telegram Bot Developer · Android Developer · AI Agent Developer</p>
+    <p style="margin-top: 8px; font-size: 0.73rem;">@The_deadMad · @Real_deadMad · <a href="https://t.me/scriptX_Lab" style="color: var(--accent-cyan); text-decoration: none;">scriptX Lab</a></p>
+  </div>
+</footer>
+
+<script>
+  // ===== CUSTOM CURSOR =====
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursor-ring');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  function animCursor() {
+    cursor.style.transform = `translate(${mx - 6}px, ${my - 6}px)`;
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.transform = `translate(${rx - 18}px, ${ry - 18}px)`;
+    requestAnimationFrame(animCursor);
+  }
+  animCursor();
+  document.querySelectorAll('a, button, .service-card, .why-card, .project-card, .handle-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { cursor.style.transform += ' scale(1.5)'; ring.style.transform += ' scale(1.6)'; ring.style.borderColor = 'rgba(0,194,255,0.8)'; });
+    el.addEventListener('mouseleave', () => { ring.style.borderColor = 'rgba(0,194,255,0.5)'; });
+  });
+
+  // ===== PARTICLES =====
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+  function resizeCanvas() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+  for (let i = 0; i < 70; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
+      o: Math.random() * 0.5 + 0.1,
+      c: Math.random() > 0.5 ? '0,194,255' : '124,58,237'
+    });
+  }
+  function drawParticles() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.c},${p.o})`;
+      ctx.fill();
+    });
+    // Connect close particles
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0,194,255,${0.06 * (1 - dist/120)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // ===== SCROLL REVEAL =====
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => observer.observe(el));
+
+  // ===== NAVBAR SCROLL =====
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 50); });
+
+  // ===== STAT COUNTER =====
+  function animateCount(el, target, suffix = '') {
+    let count = 0, step = target / 60;
+    const id = setInterval(() => {
+      count = Math.min(count + step, target);
+      el.textContent = Math.floor(count).toLocaleString() + suffix;
+      if (count >= target) clearInterval(id);
+    }, 25);
+  }
+  const statObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target.querySelector('.stat-num');
+        const target = parseInt(el.dataset.count);
+        const suffix = el.dataset.count === '99' || el.dataset.count === '100' ? '%' : (el.dataset.count === '5000' ? '+' : '');
+        animateCount(el, target, suffix);
+        statObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.stat-item').forEach(el => statObserver.observe(el));
+
+  // ===== MOBILE MENU =====
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('open'));
+  document.getElementById('closeMenu').addEventListener('click', closeMobileMenu);
+  function closeMobileMenu() { document.getElementById('mobileMenu').classList.remove('open'); }
+
+  // ===== SMOOTH ANCHOR =====
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>
